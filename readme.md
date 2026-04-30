@@ -282,4 +282,4 @@ php artisan route:list
 
 ## Licence
 
-Usage interne FMFP. Tous droits réservés.
+Usage interne ByNyCrea. Tous droits réservés. 042026
