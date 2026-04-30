@@ -1,0 +1,167 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="container-fluid">
+
+    {{-- Breadcrumb --}}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}"><i class="bi bi-house-door me-1"></i>Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ route('reservations.mes-reservations') }}">Mes réservations</a></li>
+            <li class="breadcrumb-item active">Nouvelle demande</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex align-items-center gap-2 mb-4">
+        <i class="bi bi-plus-circle fs-4 text-primary"></i>
+        <h4 class="mb-0 fw-semibold">Nouvelle demande de réservation</h4>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <form method="POST" action="{{ route('reservations.store') }}" id="formReservation">
+                        @csrf
+
+                        <div class="mb-3">
+                            <label for="salle_id" class="form-label">
+                                <i class="bi bi-building me-1 text-muted"></i>Salle <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select @error('salle_id') is-invalid @enderror"
+                                    id="salle_id" name="salle_id" required>
+                                <option value="">Sélectionner une salle…</option>
+                                @foreach($salles as $salle)
+                                <option value="{{ $salle->id }}"
+                                        data-capacite="{{ $salle->capacite }}"
+                                        {{ old('salle_id') == $salle->id ? 'selected' : '' }}>
+                                    {{ $salle->nom }} — {{ $salle->capacite }} pers.
+                                    @if($salle->equipement) · {{ Str::limit($salle->equipement, 30) }}@endif
+                                </option>
+                                @endforeach
+                            </select>
+                            @error('salle_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-sm-6">
+                                <label for="date_debut" class="form-label">
+                                    <i class="bi bi-calendar-event me-1 text-muted"></i>Début <span class="text-danger">*</span>
+                                </label>
+                                <input type="datetime-local"
+                                       class="form-control @error('date_debut') is-invalid @enderror"
+                                       id="date_debut" name="date_debut"
+                                       value="{{ old('date_debut') }}" required>
+                                @error('date_debut')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-sm-6">
+                                <label for="date_fin" class="form-label">
+                                    <i class="bi bi-calendar-event me-1 text-muted"></i>Fin <span class="text-danger">*</span>
+                                </label>
+                                <input type="datetime-local"
+                                       class="form-control @error('date_fin') is-invalid @enderror"
+                                       id="date_fin" name="date_fin"
+                                       value="{{ old('date_fin') }}" required>
+                                @error('date_fin')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                        </div>
+
+                        {{-- Indicateur de disponibilité --}}
+                        <div id="disponibiliteIndicateur" class="mb-3" style="display:none">
+                            <div id="disponibiliteResult" class="d-flex align-items-center gap-2 p-2 rounded" style="font-size:.875rem"></div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="description" class="form-label">
+                                <i class="bi bi-chat-text me-1 text-muted"></i>Description
+                                <span class="text-muted fw-normal">(optionnel)</span>
+                            </label>
+                            <textarea class="form-control @error('description') is-invalid @enderror"
+                                      id="description" name="description" rows="3"
+                                      placeholder="Objet de la réunion, nombre de participants…">{{ old('description') }}</textarea>
+                            @error('description')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary" id="btnSubmit">
+                                <i class="bi bi-send me-1"></i>Soumettre la demande
+                            </button>
+                            <a href="{{ route('reservations.mes-reservations') }}" class="btn btn-outline-secondary">
+                                Annuler
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5 mt-3 mt-lg-0">
+            <div class="card border-0 shadow-sm bg-light">
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-3"><i class="bi bi-info-circle me-2 text-primary"></i>Informations utiles</h6>
+                    <ul class="list-unstyled mb-0 text-muted" style="font-size:.875rem">
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Votre demande sera examinée par un responsable.</li>
+                        <li class="mb-2"><i class="bi bi-envelope text-primary me-2"></i>Vous recevrez un email de confirmation ou de refus.</li>
+                        <li class="mb-2"><i class="bi bi-clock text-warning me-2"></i>Les créneaux occupés ne peuvent pas être réservés.</li>
+                        <li><i class="bi bi-pencil text-secondary me-2"></i>Vous pouvez modifier ou annuler une demande en attente.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+
+@push('scripts')
+<script>
+(function () {
+    const apiUrl = '{{ route("api.disponibilite") }}';
+    const salleEl  = document.getElementById('salle_id');
+    const debutEl  = document.getElementById('date_debut');
+    const finEl    = document.getElementById('date_fin');
+    const indic    = document.getElementById('disponibiliteIndicateur');
+    const result   = document.getElementById('disponibiliteResult');
+    let debounceTimer = null;
+
+    function checkDispo() {
+        clearTimeout(debounceTimer);
+        const salle = salleEl.value;
+        const debut = debutEl.value;
+        const fin   = finEl.value;
+
+        if (!salle || !debut || !fin || debut >= fin) {
+            indic.style.display = 'none';
+            return;
+        }
+
+        result.innerHTML = '<div class="spinner-border spinner-border-sm text-secondary me-2" role="status"></div>Vérification…';
+        result.className = 'd-flex align-items-center gap-2 p-2 rounded bg-light text-secondary';
+        indic.style.display = 'block';
+
+        debounceTimer = setTimeout(function () {
+            const params = new URLSearchParams({ salle_id: salle, date_debut: debut, date_fin: fin });
+            fetch(apiUrl + '?' + params, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.disponible) {
+                    result.innerHTML = '<i class="bi bi-check-circle-fill text-success fs-5"></i><span class="text-success fw-medium">Créneau disponible</span>';
+                    result.className = 'd-flex align-items-center gap-2 p-2 rounded';
+                    result.style.background = 'rgba(25,135,84,.08)';
+                } else {
+                    result.innerHTML = '<i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i><span class="text-danger fw-medium">Créneau déjà occupé — choisissez un autre horaire</span>';
+                    result.className = 'd-flex align-items-center gap-2 p-2 rounded';
+                    result.style.background = 'rgba(220,53,69,.08)';
+                }
+            })
+            .catch(() => { indic.style.display = 'none'; });
+        }, 500);
+    }
+
+    [salleEl, debutEl, finEl].forEach(el => el.addEventListener('change', checkDispo));
+    finEl.addEventListener('input', checkDispo);
+    debutEl.addEventListener('input', checkDispo);
+})();
+</script>
+@endpush

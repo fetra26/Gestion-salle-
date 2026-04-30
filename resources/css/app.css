@@ -1,0 +1,70 @@
+/* Bootstrap 5 */
+@import "bootstrap/dist/css/bootstrap.min.css";
+
+/* ── Sidebar desktop ── */
+.sidebar {
+    min-height: 100vh;
+    background: #1565c0;
+    border-right: 1px solid rgba(255,255,255,.1);
+}
+
+/* ── Nav links (sidebar + offcanvas mobile) ── */
+.sidebar-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: .5rem .9rem;
+    color: rgba(255,255,255,.72);
+    text-decoration: none;
+    border-radius: 7px;
+    margin: 1px 8px;
+    font-size: .875rem;
+    transition: background .15s ease, color .15s ease;
+    cursor: pointer;
+}
+
+.sidebar-nav-link:hover {
+    color: #fff;
+    background: rgba(255,255,255,.09);
+}
+
+.sidebar-nav-link.active {
+    color: #fff;
+    background: rgba(255,255,255,.22);
+}
+
+.sidebar-nav-link i {
+    font-size: .95rem;
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+    opacity: .85;
+}
+
+.sidebar-nav-link.active i {
+    opacity: 1;
+}
+
+/* Badge "en attente" dans la nav */
+.sidebar-nav-link .badge {
+    margin-left: auto;
+    font-size: .7rem;
+}
+
+/* ── User card sidebar ── */
+.sidebar-user {
+    padding: 1rem 1rem .75rem;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    margin-bottom: .25rem;
+}
+
+/* ── FullCalendar ── */
+.fc-event {
+    cursor: pointer;
+}
+
+/* ── Toasts ── */
+.toast-container .toast {
+    min-width: 280px;
+    max-width: 380px;
+}
